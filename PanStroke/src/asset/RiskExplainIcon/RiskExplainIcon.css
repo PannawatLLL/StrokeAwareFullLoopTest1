@@ -1,0 +1,33 @@
+.popup-page {
+  /* Existing styles */
+  padding: 20px;
+  margin-left: 400px;
+  transform: translateX(-50%);
+  width: 330px;
+  height: 300px;
+  background: white;
+  border: 2px solid #166989;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  animation: fadeIn 0.3s ease-in-out;
+  font-family: "Prompt";
+  font-size: 15px;
+  position: absolute;
+
+}
+
+.info-icon {
+  /* Existing styles */
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 50%;
+  margin-top: 37px;
+  background: #166989;
+  color: white;
+  text-align: center;
+  width: 40px;
+  height: 40px;
+}
+
+/* If needed, ensure your text blocks are on top with a higher z-index */

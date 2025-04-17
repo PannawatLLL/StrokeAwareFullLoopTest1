@@ -1,0 +1,121 @@
+.risk-container {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+    font-family: "Poppins", sans-serif;
+    margin-top: -500px;
+  }
+  .risk-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 27px;
+    font-family: "Prompt";
+    font-weight: bold;
+    color: #166989;
+    padding-top: 10px;
+  }
+  /* Progress bar */
+  .risk-bar {
+    position: relative;
+    width: 500px;
+    height: 20px;
+    margin: 20px auto;
+    border-radius: 50px;
+    outline: 3px solid #0d4055;
+    background: linear-gradient(to right, #b6f5b6, #ffe600, #ff6a00, #ff1b1b);
+    margin-top: 20px;
+  }
+  
+  /* Percentage markers */
+  .marker {
+    position: absolute;
+    top: 50%;
+    width: 3px;
+    height: 30px;
+    border-radius: 50px;
+    background-color: black;
+    transform: translateY(-50%);
+  }
+  
+.NumPercent {
+    font-family: "Prompt";
+    font-weight: bold;
+    position: absolute;
+    padding-top: 40px;
+    margin-left: -10px;
+    font-size: 20px;
+    
+}
+
+.HighLow {
+    font-family: "Prompt";
+    font-weight: bold;
+    position: absolute;
+    padding-top: 30px;
+    margin-left: -13px;
+    font-size: 30px;
+}
+
+  /* Arrow pointer */
+  .arrow {
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 23px solid #166989;
+    position: absolute;
+    top: -34px;
+    transform: translateX(-50%);
+    left: max(5%, min(95%, var(--risk))); /* Keep inside */
+  }
+  
+  /* Risk text */
+  
+
+.circular-progress {
+  display: flex;
+  justify-content: center;
+  padding-top: -80px;
+}
+
+circle {
+  transition: stroke-dashoffset 0.5s ease-in-out; /* Smooth animation */
+}
+
+
+/* Blinking effect */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+@keyframes pulse1 {
+  0% {
+      transform: scale(0.8);
+      opacity: 1;
+  }
+  100% {
+      transform: scale(1.1);
+      opacity: 0;
+  }
+}
+
+@media (max-width: 750px) {
+  .risk-text {
+    font-size: 25px;
+  }
+}
+
+
+@media (max-width: 750px) {
+  .risk-bar {
+    width: 80%;
+  }
+}

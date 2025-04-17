@@ -1,0 +1,66 @@
+.Box1 {
+    font-family: "Prompt";
+    display: flex;
+  flex-direction: column;
+  align-items: left;
+  width: 325px;
+  height: 600px;
+  max-width: 1000px;
+  max-height: 80vh;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  overflow: scroll;
+  scroll-behavior: smooth;
+  margin-top: 1%;
+  margin-left: 30px;
+}
+
+.BoxInfoTop {
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.Explain_container {
+    margin-top: 16px;
+}
+
+.Explain {
+    padding-top: 5px;
+    text-align: left;
+    font-size: 20px;
+}
+
+.BoxClassi {
+    margin-top: 16px;
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.ClassiResult {
+    margin-top: 16px;
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 26px;
+}
+
+.dat {
+    padding-top: 5px;
+    text-align: center;
+    font-size: 20px;
+}
+
+.Head1_img {
+    width: 220px;
+    height: auto;
+}
+
+.Position_Text {
+    font-family: "Prompt";
+    font-weight: bold;
+    font-size: 20px;
+}
