@@ -2,8 +2,12 @@ import React, { useState } from "react";
 import '../../component/LoginRegister.css';
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
+import { Link, Navigate } from "react-router-dom";
+import { db } from '../../auth';
+import { doc, updateDoc } from 'firebase/firestore';
+
 import TIMEcomponent from "./asset_pic/TIMEcomponent.png";
-import { Link } from "react-router-dom";
+import plus from '../../component/pic/Plus asset.png';
 
 export function BEFAST_MAIN_TIME() {
     const [hours, setHours] = useState("");
@@ -11,52 +15,83 @@ export function BEFAST_MAIN_TIME() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = () => {
+    const patientName = localStorage.getItem('patientName');
+    const patientId = localStorage.getItem('patientId');
+
+    if (!patientName || !patientId) {
+        return <Navigate to="/SearchByIdCard" replace />;
+    }
+
+    const handleSubmit = async () => {
         if (isNaN(hours) || isNaN(minutes) || hours === "" || minutes === "") {
             Swal.fire({
                 icon: 'error',
                 title: 'กรอกข้อมูลไม่ถูกต้อง',
                 text: 'กรุณากรอกตัวเลขเท่านั้น',
-                customClass: {
-                    text: 'swal-text'
-                }
+                customClass: { text: 'swal-text' }
             });
             return;
         }
 
-        const h = parseFloat(hours);
-        const m = parseFloat(minutes);
+        const h = parseInt(hours);
+        const m = parseInt(minutes);
+
+        if (h < 0 || h > 23 || m < 0 || m > 59) {
+            Swal.fire({
+                icon: 'error',
+                title: 'กรอกข้อมูลไม่ถูกต้อง',
+                text: 'ชั่วโมงต้องอยู่ระหว่าง 0-23 และนาทีต้องอยู่ระหว่าง 0-59',
+                customClass: { text: 'swal-text' }
+            });
+            return;
+        }
+
         const totalHours = h + m / 60;
+        const TimeFactor = `${h}.${m.toString().padStart(2, '0')}`;
 
-        setIsSubmitting(true); // Disable page
+        setIsSubmitting(true);
 
-        setTimeout(() => {
+        try {
+            const patientRef = doc(db, "patients_topform", patientId);
+            await updateDoc(patientRef, {
+                TimeFactor: TimeFactor
+            });
+
+            localStorage.removeItem('patientName');
+            localStorage.removeItem('patientId');
+
             if (totalHours > 4.5) {
-                Swal.fire({
+                await Swal.fire({
                     icon: 'warning',
                     title: 'อาการนานเกิน 4.5 ชั่วโมง',
-                    text: 'ควรไปโรงพยาบาลทันที!',
-                    customClass: {
-                        text: 'swal-text'
-                    }
-                }).then(() => {
-                    navigate(`/TimeMap?hours=${hours}&minutes=${minutes}`);
+                    text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
+                    confirmButtonText: 'ตกลง'
                 });
             } else if (totalHours > 1) {
-                Swal.fire({
+                await Swal.fire({
                     icon: 'info',
                     title: 'อาการนานเกิน 1 ชั่วโมง',
-                    text: 'แนะนำให้ไปโรงพยาบาล',
-                    customClass: {
-                        text: 'swal-text'
-                    }
-                }).then(() => {
-                    navigate(`/TimeMap?hours=${hours}&minutes=${minutes}`);
+                    text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
+                    confirmButtonText: 'ตกลง'
                 });
-            } else {
-                navigate(`/TimeMap?hours=${hours}&minutes=${minutes}`);
             }
-        }, 500);
+            
+            // ✅ Always redirect to /InForm
+            localStorage.removeItem('patientName');
+            localStorage.removeItem('patientId');
+            navigate("/InForm");
+            
+        } catch (error) {
+            console.error("Error updating patient document:", error);
+            Swal.fire({
+                icon: 'error',
+                title: 'เกิดข้อผิดพลาด',
+                text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง',
+                confirmButtonText: 'ตกลง'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -64,29 +99,53 @@ export function BEFAST_MAIN_TIME() {
             <div className="StrokeAwareCenter" style={{ fontWeight: 'bold', letterSpacing: "5px" }}>
                 B E F A S T
             </div>
+            <div className="StrokeAwareTopRight">
+                Stroke Aware
+                <img src={plus} style={{ marginLeft: "20px", marginBottom: "2px" }} />
+            </div>
             <div className="d-flex justify-content-center gap-4 mt-4 BoxContainer">
                 <div className="MiddleBoxTestRowTIME">
                     <div className="insideTitleBEFAST" style={{ fontFamily: "Poppins" }}>
                         T I M E
                     </div>
                     <div className="image-container">
-                        <img src={TIMEcomponent} className="centerpictureMAIN5"></img>
+                        <img src={TIMEcomponent} className="centerpictureMAIN5" />
                     </div>
                     <div className="insideTitleTHTIME" style={{ fontFamily: "Prompt" }}>
-                        คุณมีอาการมาข้างต้นมานานแค่ไหนแล้ว
+                        คุณมีอาการมาข้างต้นมานานแค่ไหนแล้ว <span style={{fontWeight:"700", textDecoration:"underline"}}>(หากมี)</span>
+                        <p style={{fontWeight:"500", color:"#787878"}}>** หากไม่มีให้ใส่ 0 : 0 **</p>
                     </div>
                     <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '45px', marginLeft: "-15px", fontFamily: 'Prompt', fontWeight: "600", fontSize: "25px" }}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            gap: '45px',
+                            marginLeft: "-15px",
+                            fontFamily: 'Prompt',
+                            fontWeight: "600",
+                            fontSize: "25px"
+                        }}>
                             <div>ชั่วโมง</div>
                             <div>นาที</div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            gap: '10px',
+                            marginTop: '10px'
+                        }}>
                             <input
                                 type="number"
                                 min="0"
                                 max="23"
                                 value={hours}
-                                onChange={(e) => setHours(e.target.value)}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === "" || (!isNaN(value) && parseInt(value) >= 0 && parseInt(value) <= 23)) {
+                                        setHours(value);
+                                    }
+                                }}
                                 style={{
                                     width: '60px',
                                     height: '60px',
@@ -94,7 +153,7 @@ export function BEFAST_MAIN_TIME() {
                                     textAlign: 'center',
                                     borderRadius: '10px',
                                     border: '1px solid gray',
-                                    fontFamily:"Prompt"
+                                    fontFamily: "Prompt"
                                 }}
                             />
                             <div style={{ fontSize: '24px' }}>:</div>
@@ -105,12 +164,8 @@ export function BEFAST_MAIN_TIME() {
                                 value={minutes}
                                 onChange={(e) => {
                                     const value = e.target.value;
-                                    if (value === "") {
-                                        setMinutes("");
-                                    } else if (!isNaN(value) && parseInt(value) <= 59) {
+                                    if (value === "" || (!isNaN(value) && parseInt(value) >= 0 && parseInt(value) <= 59)) {
                                         setMinutes(value);
-                                    } else {
-                                        setMinutes("59"); // cap at 59
                                     }
                                 }}
                                 style={{
@@ -120,10 +175,9 @@ export function BEFAST_MAIN_TIME() {
                                     textAlign: 'center',
                                     borderRadius: '10px',
                                     border: '1px solid gray',
-                                    fontFamily:"Prompt"
+                                    fontFamily: "Prompt"
                                 }}
                             />
-
                         </div>
                     </div>
 
@@ -131,13 +185,31 @@ export function BEFAST_MAIN_TIME() {
                         onClick={handleSubmit}
                         className="insideStart"
                         disabled={isSubmitting}
-                        style={{ marginTop: '20px', cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+                        style={{
+                            marginTop: '20px',
+                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                            fontFamily: 'Prompt'
+                        }}
                     >
-                        ยืนยัน
+                        {isSubmitting ? 'กำลังประมวลผล...' : 'ยืนยัน'}
                     </button>
                 </div>
             </div>
-            <Link to="/next" className='login'>next</Link>
+
+            {patientName && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '20px',
+                    right: '20px',
+                    fontFamily: 'Prompt',
+                    background: '#f0f0f0',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    boxShadow: '0 0 5px rgba(0,0,0,0.1)'
+                }}>
+                    👤 {patientName}
+                </div>
+            )}
         </div>
     );
 }

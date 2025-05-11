@@ -1,156 +1,253 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import '../../../component/LoginRegister.css';
+import React, { useState, useEffect, useRef } from 'react';
+import Swal from 'sweetalert2';
+import './EYE.css';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../../auth';
+import EYESpace from './EYESpace.png'
+import { useNavigate } from 'react-router-dom';
 
-const EYE = () => {
-  const [position, setPosition] = useState('center');
-  const [movementStep, setMovementStep] = useState(0);
+function EYE() {
+  const navigate = useNavigate();
+  const [stage, setStage] = useState('notice');
+  const [currentStimulus, setCurrentStimulus] = useState(null);
   const [score, setScore] = useState(0);
-  const [countdown, setCountdown] = useState(2.0);
-  const [isStarted, setIsStarted] = useState(false);
-  const [hasCompleted, setHasCompleted] = useState(false);
-  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
-  const [showPopup, setShowPopup] = useState(true);
-  const [clicked, setClicked] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [missedCount, setMissedCount] = useState(0);
+  const [dotsShown, setDotsShown] = useState(0);
 
-  useEffect(() => {
-    let timer;
-  
-    if (isStarted && countdown > 0 && !hasCompleted && !isButtonDisabled) {
-      timer = setTimeout(() => {
-        setCountdown(prev => parseFloat((prev - 0.1).toFixed(1)));
-      }, 100); // every 0.1 second
-    } else if (countdown <= 0 && !hasCompleted && !isButtonDisabled) {
-      moveButton();
-    }
-  
-    return () => clearTimeout(timer);
-  }, [countdown, isStarted, hasCompleted, isButtonDisabled]);
-  
+  const scoreRef = useRef(0);
+  const missedCountRef = useRef(0);
+  const dotsShownRef = useRef(0);
 
-  useEffect(() => {
-    if (movementStep >= 3) {
-      setHasCompleted(true);
-    }
-  }, [movementStep]);
+  const stimulusQueue = useRef([]);
+  const countdownRef = useRef(null);
+  const stimulusTimeoutRef = useRef(null);
+  const cooldownTimeoutRef = useRef(null);
 
-  const moveButton = () => {
-    setIsButtonDisabled(true);
+  const generateRandomPosition = (quarter) => {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    let minX, maxX, minY, maxY;
 
-    if (movementStep % 2 === 0) {
-      setPosition('left');
-    } else {
-      setPosition('right');
-    }
-
-    setMovementStep(prev => prev + 1);
-    setCountdown(2);
-
-    setTimeout(() => {
-      setIsButtonDisabled(false);
-    }, 2000);
-  };
-
-  const handleClick = () => {
-    if (!isStarted) {
-      setIsStarted(true);
+    switch (quarter) {
+      case 'top-left':
+        minX = 50; maxX = screenWidth / 2 - 50;
+        minY = 50; maxY = screenHeight / 2 - 50;
+        break;
+      case 'top-right':
+        minX = screenWidth / 2 + 50; maxX = screenWidth - 50;
+        minY = 50; maxY = screenHeight / 2 - 50;
+        break;
+      case 'bottom-left':
+        minX = 50; maxX = screenWidth / 2 - 50;
+        minY = screenHeight / 2 + 50; maxY = screenHeight - 50;
+        break;
+      case 'bottom-right':
+        minX = screenWidth / 2 + 50; maxX = screenWidth - 50;
+        minY = screenHeight / 2 + 50; maxY = screenHeight - 50;
+        break;
+      default:
+        minX = 50; maxX = screenWidth / 2 - 50;
+        minY = 50; maxY = screenHeight / 2 - 50;
     }
 
-    if (movementStep > 0) {
-      setScore(prev => prev + 1);
-    }
-
-    setCountdown(5);
-    moveButton();
-
-    setClicked(true);
-    setTimeout(() => setClicked(false), 200);
+    return {
+      x: Math.random() * (maxX - minX) + minX,
+      y: Math.random() * (maxY - minY) + minY,
+    };
   };
 
   const startTest = () => {
-    setShowPopup(false);
+    setScore(0);
+    setMissedCount(0);
+    setDotsShown(0);
+    scoreRef.current = 0;
+    missedCountRef.current = 0;
+    dotsShownRef.current = 0;
+    stimulusQueue.current = [];
+    setCurrentStimulus(null);
+    setTimeLeft(60);
+    setStage('test');
   };
 
+  const finishTest = async () => {
+    clearInterval(countdownRef.current);
+    clearTimeout(stimulusTimeoutRef.current);
+    clearTimeout(cooldownTimeoutRef.current);
+    setCurrentStimulus(null);
+    
+    const resultToStore = missedCountRef.current >= 5 ? "yes" : "no";
+    const patientId = localStorage.getItem("patientId");
+    
+    if (!patientId) {
+      Swal.fire('ไม่พบข้อมูลผู้ป่วย', 'กรุณากรอกข้อมูลผู้ป่วยก่อนเริ่มการทดสอบ', 'error');
+      navigate('/patientDetail');
+      return;
+    }
+
+    try {
+      const docRef = doc(db, "patients_topform", patientId);
+      await updateDoc(docRef, {
+        eyeTestResult: resultToStore,
+        eyeTestDotsShown: dotsShownRef.current,
+        eyeTestMissed: missedCountRef.current,
+        eyeTestClicked: scoreRef.current,
+        eyeTestTimestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("Error updating Firebase:", err);
+      Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถบันทึกผลได้", "error");
+      return;
+    }
+
+    Swal.fire({
+      title: "ประเมินเสร็จสิ้น",
+      icon: "success",
+      confirmButtonText: "ถัดไป"
+    }).then(() => {
+      navigate('/BEFAST_MAIN_FACE');
+    });
+
+    setStage("result");
+  };
+
+  useEffect(() => {
+    if (stage !== 'test') return;
+
+    countdownRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          finishTest();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    const runStimulusLoop = () => {
+      if (dotsShownRef.current >= 30) {
+        finishTest();
+        return;
+      }
+
+      const quarters = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+      const quarter = quarters[Math.floor(Math.random() * quarters.length)];
+      const pos = generateRandomPosition(quarter);
+      const id = Date.now();
+
+      const stim = {
+        id,
+        x: pos.x,
+        y: pos.y,
+        color: '#ffffff',
+        shownAt: Date.now(),
+        quarter
+      };
+
+      setCurrentStimulus(stim);
+      stimulusQueue.current.push(stim);
+      setDotsShown(prev => {
+        const updated = prev + 1;
+        dotsShownRef.current = updated;
+        return updated;
+      });
+
+      stimulusTimeoutRef.current = setTimeout(() => {
+        const matched = stimulusQueue.current.find(s => s.id === id);
+        if (matched && !matched.hit) {
+          setMissedCount(prev => {
+            const updated = prev + 1;
+            missedCountRef.current = updated;
+            return updated;
+          });
+        }
+
+        setCurrentStimulus(null);
+
+        cooldownTimeoutRef.current = setTimeout(() => {
+          if (stage === 'test') {
+            runStimulusLoop();
+          }
+        }, Math.floor(Math.random() * (2000 - 800 + 1)) + 800);
+      }, 500);
+    };
+
+    runStimulusLoop();
+
+    return () => {
+      clearInterval(countdownRef.current);
+      clearTimeout(stimulusTimeoutRef.current);
+      clearTimeout(cooldownTimeoutRef.current);
+    };
+  }, [stage]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' && currentStimulus) {
+        const updatedQueue = stimulusQueue.current.map(stim =>
+          stim.id === currentStimulus.id ? { ...stim, hit: true } : stim
+        );
+        stimulusQueue.current = updatedQueue;
+
+        setScore(prev => {
+          const updated = prev + 1;
+          scoreRef.current = updated;
+          return updated;
+        });
+
+        setCurrentStimulus(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStimulus]);
+
   return (
-    <div style={styles.container}>
-      {showPopup && (
-        <div className="instruction-popup">
-          <div className='EYEheader'>แบบประเมินสายตา</div>
-          <div className="EYEpopup-content" style={{ fontFamily: "Prompt" }}>
-            <div className='EYEheader1'>วิธีการประเมิน</div>
-            <div className="instruction-steps" style={{ fontFamily: "Prompt" }}>
-              <div className='EYEinstruc'>1. เมื่อเริ่มกดวงกลมสีแดงแบนหน้าจอ</div>
-              <div className='EYEinstruc'>2. กดวงกลมสีแดงเมื่อหยุดคลื่อนที่</div>
-              <div className='EYEinstruc'>3. ยกแขนค้างไว้ 15 วินาที</div>
-            </div>
-            
+    <div className="container">
+      {stage === 'notice' && (
+        <div className="notice" style={{ fontFamily: "Prompt", marginTop: "30px", width:"620px" }}>
+          <div className='EYEheader' style={{fontSize:"75px"}}>วิธีการประเมิน</div>
+          <div className='steps' style={{fontSize:"22px", textAlign:"left", marginLeft:"20px"}}>
+          <p>1. นั่งหน้าตรงเข้าหาหน้าจอ ห่างจากหน้าจอ 46 เซนติเมตร</p>
+          <p>2. จ้องจุดสีเขียวตลอดเวลาขณะทำการประเมิน</p>
+          <p>3. หากเห็นจุดสีขาวขึ้นบนหน้าจอ ให้กด "Space Bar"</p>
           </div>
-          <button className="EYEstartbutton" onClick={startTest}>เริ่มทำ</button>
+          <img src={EYESpace} style={{ height: "180px", width: "auto", marginBottom: "20px" }} />
+          <h2 style={{ fontSize: "20px", color: "red" }}>⚠️ คำเตือน ⚠️</h2>
+          <p style={{ fontSize: "20px" }}>หากรู้สึกเวียนหัว โปรดหยุดใช้งานทันที</p>
+          <button
+            className="btn btn-success"
+            onClick={startTest}
+            style={{ display: "block", margin: "0 auto" }}
+          >
+            เริ่มทดสอบ
+          </button>
         </div>
       )}
-
-      {!hasCompleted ? (
-        <button
-          onClick={handleClick}
-          disabled={isButtonDisabled}
-          className={clicked ? 'clicked-effect' : ''}
-          style={{
-            ...styles.button,
-            left: position === 'left' ? '10%' : position === 'right' ? '90%' : '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <div style={{ fontSize: "50px" }}>{countdown}</div>
-        </button>
-      ) : (
-        <div style={styles.completeContainer}>
-          <h2>คุณทำคะแนนได้ : {score}</h2>
-          <h3>การทดสอบเสร็จสิ้น</h3>
-          <Link to="/BEFAST_MAIN_FACE" className="EYENext" style={{ marginTop: "30px" }}>
-            ถัดไป
-          </Link>
-        </div>
+      {stage === 'test' && (
+        <>
+          <div className="info-bar">
+            <div className="timer">⏱ เหลือเวลา: {timeLeft}s</div>
+            <div className="score">คะแนน: {score}</div>
+            <div className="dots-count">จุดที่แสดง: {dotsShown}/30</div>
+          </div>
+          <div className="screen">
+            <div className="fixation-dot"></div>
+            {currentStimulus && (
+              <div
+                className="stimulus-dot"
+                style={{
+                  left: `${currentStimulus.x}px`,
+                  top: `${currentStimulus.y}px`,
+                  backgroundColor: currentStimulus.color,
+                }}
+              ></div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
-};
-
-const styles = {
-  container: {
-    position: 'relative',
-    height: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-  },
-  completeContainer: {
-    fontFamily: "Prompt",
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-  },
-  button: {
-    position: 'absolute',
-    width: '110px',
-    height: '110px',
-    borderRadius: '50%',
-    backgroundColor: 'red',
-    color: 'white',
-    fontSize: '20px',
-    fontFamily: 'Prompt',
-    fontWeight: 'bold',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'left 2s ease, top 2s ease',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-};
+}
 
 export default EYE;

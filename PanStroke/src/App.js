@@ -1,10 +1,8 @@
+import React, { useEffect } from 'react'; 
 import Register from './component/Register';
 import Login from './component/Login';
-import Ver66 from './asset/RiskForm/Ver66';
 import Otp from './asset/Otp/Otp'
-import { ClassificationSystem } from './component/ClassificationSystem';
 import { Inform } from './component/Inform';
-import HandRaiseDetection from './asset/MotorWeakHandRaise/HandRaiseDetection'
 import {BEFAST_MAIN_BALANCE} from './asset/BEFAST/BEFAST_MAIN_BALANCE'
 import {BEFAST_MAIN_EYES} from './asset/BEFAST/BEFAST_MAIN_EYES'
 import {BEFAST_MAIN_FACE} from './asset/BEFAST/BEFAST_MAIN_FACE'
@@ -15,11 +13,12 @@ import ArmStrengthTest from './asset/BEFAST/Assesment/ARM_ass'
 import Speech from './asset/BEFAST/Assesment/Speech';
 import BALANCE from './asset/BEFAST/Assesment/BALANCE'
 import FACE from './asset/BEFAST/Assesment/FACE'
-import EYE from './asset/BEFAST/Assesment/EYE'
+import EYE from './asset/BEFAST/Assesment/EYE.jsx'
 import TimeMap from './asset/BEFAST/Assesment/TimeMap.js'
-import {TestAsset} from './component/TestAsset.js'
+import PatientDetail from './component/PatientDetail.jsx'
 import {VoiceTrigger} from './component/TestVoiceSpeech.js'
-
+import SearchByIdCard from './component/SearchPatient.jsx';
+import Hospital from './asset/BEFAST/Assesment/Hospital.jsx';
 
 import {
   BrowserRouter as Router,
@@ -30,6 +29,12 @@ import {
 
 
 function App() {
+      useEffect(() => {
+    // Clear user data on app load
+    localStorage.removeItem('patientName');
+    localStorage.removeItem('patientId');
+    // Add more items if needed
+  }, []);
   return (
     <Router>
       <Routes>
@@ -42,24 +47,12 @@ function App() {
                         element={<Register/>}
                     />
         <Route
-                        path="/ClassificationSystem"
-                        element={<ClassificationSystem/>}
-                    />
-        <Route
                         path="/Inform"
                         element={<Inform/>}
-                    />
-        <Route
-                        path="/Ver66"
-                        element={<Ver66/>}
                     />
          <Route
                         path="/Otp"
                         element={<Otp/>}
-                    />
-        <Route
-                        path="/HandRaiseDetection"
-                        element={<HandRaiseDetection/>}
                     />
         <Route
                         path="/BEFAST_MAIN_BALANCE"
@@ -110,13 +103,21 @@ function App() {
                         element={<TimeMap/>}
                     />
         <Route
-                        path="/TestAsset"
-                        element={<TestAsset/>}
+                        path="/PatientDetail"
+                        element={<PatientDetail/>}
                     />
         <Route
                         path="/VoiceTrigger"
                         element={<VoiceTrigger/>}
-                    />     
+                    />
+        <Route
+                        path="/SearchByIdCard"
+                        element={<SearchByIdCard/>}
+                    />
+        <Route
+                        path="/Hospital"
+                        element={<Hospital/>}
+                    />
       </Routes>
     </Router>
   );

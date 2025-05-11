@@ -18,7 +18,7 @@
   
   .HeaderARM {
     text-align: center;
-    color: #2c3e50;
+    color: #6D4DC0;
     font-size: 2.6rem;
     margin-bottom: 8px;
     font-weight: 500;
@@ -94,6 +94,7 @@
     display: flex;
     align-items: center;
     margin-bottom: 15px;
+    font-size: 20px;
   }
   
   .step-icon {
@@ -213,7 +214,11 @@
     align-items: center;
     justify-content: center;
   }
-
+  .ArmRaise {
+    width: 45%;
+    height: auto;
+    margin-top: 15px;
+  }
   
   @keyframes pulse {
     0% {

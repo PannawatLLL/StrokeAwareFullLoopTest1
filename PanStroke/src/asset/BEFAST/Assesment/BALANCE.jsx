@@ -2,16 +2,16 @@ import React, { useRef, useEffect, useState } from "react";
 import { Camera } from "@mediapipe/camera_utils";
 import { Pose } from "@mediapipe/pose";
 import "@mediapipe/pose/pose";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../../auth";
 import BALANCEnarrator from "./NarratorAsset/BALANCEnarrator.mp3";
-import { VoiceTrigger } from "../../../component/TestVoiceSpeech";
 import Swal from "sweetalert2";
-
 import Audiobutton from "./NarratorAsset/Audiobutton.png";
 import Audiomutebutton from "./NarratorAsset/Audiomutebutton.png";
 
-
 const BALANCE = () => {
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const audioRef = useRef(null);
@@ -20,10 +20,13 @@ const BALANCE = () => {
   const [walkingStraight, setWalkingStraight] = useState(true);
   const [beFastRisk, setBeFastRisk] = useState("Normal");
   const [average, setAverage] = useState(null);
+  const [balanceFlag, setBalanceFlag] = useState(null);
   const [isCalculatingAverage, setIsCalculatingAverage] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const [startTriggered, setStartTriggered] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [testPhase, setTestPhase] = useState("standby");
 
   useEffect(() => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -53,72 +56,121 @@ const BALANCE = () => {
     });
 
     camera.start();
-
-    return () => {
-      camera.stop();
-    };
+    return () => camera.stop();
   }, []);
+
   useEffect(() => {
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  
     recognition.continuous = true;
-    recognition.lang = 'th-TH'; // Proper Thai locale
-  
+    recognition.lang = 'th-TH';
+
     recognition.onresult = (event) => {
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-      console.log('Heard:', transcript);
-  
       if (transcript.includes('เริ่มทำ')) {
         Swal.fire({
           title: 'ตรวจพบเสียง',
           text: 'เริ่มต้นการประเมิน',
           icon: 'success',
           timer: 2000,
-          showConfirmButton: false,
-          customClass: {
-            title: 'swal-title',
-            text: 'swal-title',
-          }
+          showConfirmButton: false
         });
-  
-        // Simulate "เริ่ม" button click
-        setShowInstructions(false);
-        setStartTriggered(true);
+        handleStart();
       }
     };
-  
+
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
     };
-  
+
     recognition.start();
-  
-    return () => {
-      recognition.stop();
-    };
+    return () => recognition.stop();
   }, []);
-  
+
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.play().catch((e) => {
-        console.warn("Auto-play failed:", e);
-      });
+      audioRef.current.play().catch((e) => console.warn("Auto-play failed:", e));
     }
   }, []);
-  
+
+  useEffect(() => {
+    if (countdown === null) return;
+
+    const timer = setTimeout(() => {
+      if (countdown > 0) {
+        setCountdown(countdown - 1);
+      } else {
+        if (testPhase === "standby") {
+          setTestPhase("counting");
+          setCountdown(5);
+        } else if (testPhase === "counting") {
+          startCollectingBalance();
+        }
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, testPhase]);
+
+  const startCollectingBalance = () => {
+    if (isCalculatingAverage) return;
+    if (videoRef.current) {
+      videoRef.current.pause();
+      const stream = videoRef.current.srcObject;
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    }
+
+    setIsCalculatingAverage(true);
+    setAverage(null);
+    setBalanceFlag(null);
+
+    const samples = [];
+    const interval = setInterval(() => samples.push(balanceScore), 100);
+
+    setTimeout(async () => {
+      clearInterval(interval);
+      const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+      const avgFixed = avg.toFixed(2);
+      const flag = avg < 70 ? "yes" : "no";
+
+      setAverage(avgFixed);
+      setBalanceFlag(flag);
+      setIsCalculatingAverage(false);
+
+      try {
+        const docId = localStorage.getItem("patientId");
+        if (docId) {
+          const docRef = doc(db, "patients_topform", docId);
+          await updateDoc(docRef, {
+            balanceResult: flag,
+            balanceAverage: avgFixed
+          });
+        }
+      } catch (err) {
+        console.error("Error updating Firebase:", err);
+      }
+
+      Swal.fire({
+        title: 'ประเมินเสร็จสิ้น',
+        icon: 'success',
+        confirmButtonText: 'ถัดไป'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/BEFAST_MAIN_EYES");
+        }
+      });
+    }, 1000);
+  };
+
   const onResults = (results) => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
     if (!canvas || !video) return;
-
     const ctx = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
-
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(video, 0, 0, width, height);
     drawCenterLine(ctx, width, height);
-
     if (results.poseLandmarks) {
       drawSkeleton(ctx, results.poseLandmarks, width, height);
       drawLandmarks(ctx, results.poseLandmarks, width, height);
@@ -195,130 +247,69 @@ const BALANCE = () => {
     setBeFastRisk(deviation > 0.12 ? "High Risk" : "Normal");
   };
 
-  const handleGetAverage = () => {
-    if (isCalculatingAverage) return;
-
-    if (videoRef.current) {
-      videoRef.current.pause();
-      const stream = videoRef.current.srcObject;
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    }
-
-    setIsCalculatingAverage(true);
-    setAverage(null);
-
-    const samples = [];
-    const interval = setInterval(() => {
-      samples.push(balanceScore);
-    }, 100);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-      setAverage(avg.toFixed(2));
-      setIsCalculatingAverage(false);
-    }, 3000);
-  };
-
   const handleStart = () => {
     setShowInstructions(false);
     setStartTriggered(true);
+    setTestPhase("standby");
+    setCountdown(5);
   };
 
-  const playAudio = () => {
-    audioRef.current?.play();
-  };
   const toggleMute = () => {
     if (audioRef.current) {
       audioRef.current.muted = !audioRef.current.muted;
       setIsMuted(audioRef.current.muted);
     }
   };
-  
+
+  const getCountdownMessage = () => {
+    if (testPhase === "standby") return "เตรียมตัว";
+    if (testPhase === "counting") return "เริ่มเดิน";
+    return null;
+  };
+
   return (
-    
     <div className="container">
       <div className="BALANCEheader">แบบประเมินการทรงตัว</div>
 
       {showInstructions && (
-        <div className="popup">
-          <div className="popup-content">
-            <div className="InstructionContainer">
-              <div className="BALANCEheader1">วิธีการประเมิน</div>
-              <div className="BALANCEinstruc">
-                1. ถอยห่างจากกล้อง <span style={{ fontWeight: "700", textDecoration: "underline" }}>5 ก้าว</span> หรือ ประมาณ 3 เมตร
-              </div>
-              <div className="BALANCEinstruc">2. เมื่อประจำตำแหน่งพูดว่า เริ่มทำ หรือ หากมีผู้ช่วยให้ผู้ช่วยกดเริ่มทำบนหน้าจอ</div>
-              <div className="BALANCEinstruc">3. เมื่อเริ่มค่อยๆ เดินเข้าหากล้อง</div>
-              <div className="BALANCEinstruc">4. เมื่อเสร็จ กดประเมินบนหน้าจอ</div>
+        <div className="instruction-popup" style={{ alignItems: "center", textAlign: "center" }}>
+          <div className="popup-content" style={{ fontFamily: "Prompt" }}>
+            <h2 style={{ fontSize: "35px", marginTop: "-20px" }}>วิธีการประเมิน</h2>
+            <div className="instruction-steps" style={{ color: "#787878", marginLeft: "-30px" }}>
+              <div className="step">1. กดเริ่มเมื่อพร้อม</div>
+              <div className="step">2. เดินถอยห่างจากกล้องประมาณ 6 ก้าว และยืนให้ตรงกลางเส้น</div>
+              <div className="step">3. ค่อยๆ เดินเข้าหากล้องภายในระยะเวลา 5 วิ</div>
             </div>
-
-            <div className="narratorContainer">
-              <audio ref={audioRef} src={BALANCEnarrator} autoPlay />
-              <div className="narratorinstruc">คำบรรยายเสียง</div>
-              <button onClick={toggleMute}  className="Audiobutton" >
-                <img
-                  src={isMuted ? Audiobutton : Audiomutebutton}
-                  alt="Mute Toggle"
-                  style={{ width: "80px", height: "80px" }}
-                  
-                />
+            <audio ref={audioRef} src={BALANCEnarrator} autoPlay />
+            <div className="ismutepiccontainer">
+              <button onClick={toggleMute} className="ismutepicBALANCE">
+                <img src={isMuted ? Audiobutton : Audiomutebutton} style={{ width: "60px", height: "auto" }} alt="Audio Toggle" />
               </button>
             </div>
-            <div className="ismutedcontainer">{isMuted && (
-              <div className="ismuted">
-                เสียงถูกปิดอยู่
-              </div>
-            )}
-            </div>
-          </div>
-          <div className="startcontainer">
-            <button onClick={handleStart} className="BALANCEstartbutton">เริ่ม</button>
+            <button onClick={handleStart} className="insideStart">เริ่ม</button>
           </div>
         </div>
       )}
 
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ display: "none" }}
-      ></video>
-
+      <video ref={videoRef} autoPlay playsInline muted style={{ display: "none" }}></video>
       <canvas ref={canvasRef} width={640} height={480} className="canvas"></canvas>
 
-      {average && (
-        <p className="score">
-          <span style={{ fontFamily: "Prompt", fontWeight: "500", marginTop: "20px" }}>
-            ค่าเฉลี่ยในการเดิน:
-          </span>
-          <div className="percent">{average}%</div>
-        </p>
-      )}
-
-      {startTriggered && !average && !isCalculatingAverage && (
-        <button onClick={handleGetAverage} className="BALANCEcalbutton">
-          ประมวลผล
-        </button>
+      {countdown !== null && countdown > 0 && (
+        <div style={{ textAlign: "center", marginTop: "15px" }}>
+          <p style={{ fontSize: "24px", fontFamily: "Prompt", fontWeight: "bold" }}>
+            {getCountdownMessage()}
+          </p>
+          <p style={{ fontSize: "32px", fontFamily: "Prompt", fontWeight: "bold" }}>
+            {countdown}
+          </p>
+        </div>
       )}
 
       {isCalculatingAverage && (
-        <p style={{ fontFamily: "Prompt", fontWeight: "500", marginTop: "25px", fontSize: "26px" }}>
+        <p style={{ fontFamily: "Prompt", fontWeight: "500", fontSize: "26px", marginTop: "30px" }}>
           กำลังประมวลผล...
         </p>
       )}
-
-      {average && (
-        <Link to="/BEFAST_MAIN_EYES" className="Next">
-          ถัดไป
-        </Link>
-      )}
-
-      {/* Spacer at bottom */}
-      <div style={{ height: "100px" }}></div>
     </div>
   );
 };

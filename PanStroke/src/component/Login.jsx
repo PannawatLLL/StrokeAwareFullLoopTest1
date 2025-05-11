@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './LoginRegister.css';
-import BrainSide from './BrainSide.png';
+import BrainSide from './pic/BrainSide.png';
 import {auth} from '../auth.js';
 import {signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
@@ -44,7 +44,7 @@ export default function Login() {
     <div className='container'>
       <div className='Name'>
         <div className='Top'>Stroke Aware</div>
-        <div className='Top-1'>แพลตฟอร์มคัดกรองโรคหลอดเลือดสมองจากคลื่นไฟฟ้าสมอง</div>
+        <div className='Top-1'>แพลตฟอร์มคัดกรองโรคหลอดเลือดสมองจากแบบประเมินและคลื่นไฟฟ้าสมองด้วยปัญญาประดิษฐ์</div>
       </div>
       <div className='BrainFront-container'>
         <img src={BrainSide} alt='BrainFront' style={{ width: '210px', height: 'auto' }} />

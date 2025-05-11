@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './LoginRegister.css';
-import BrainSide from './BrainSide.png';
+import BrainSide from './pic/BrainSide.png';
 import Swal from 'sweetalert2';
 
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -39,7 +39,7 @@ export default function Register() {
     <div className='container'>
       <div className='Name'>
         <div className='Top'>Stroke Aware</div>
-        <div className='Top-1'>แพลตฟอร์มคัดกรองโรคหลอดเลือดสมองจากคลื่นไฟฟ้าสมอง</div>
+        <div className='Top-1'>แพลตฟอร์มคัดกรองโรคหลอดเลือดสมองจากแบบประเมินและคลื่นไฟฟ้าสมองด้วยปัญญาประดิษฐ์</div>
       </div>
       <div className='BrainFront-container'>
         <img src={BrainSide} alt='BrainFront' style={{ width: '210px', height: 'auto' }} />
