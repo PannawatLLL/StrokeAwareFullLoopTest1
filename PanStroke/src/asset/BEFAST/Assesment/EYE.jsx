@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import './EYE.css';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../auth';
+import { firestore  } from '../../../component/auth';
 import EYESpace from './EYESpace.png'
 import { useNavigate } from 'react-router-dom';
 
@@ -14,6 +14,7 @@ function EYE() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [missedCount, setMissedCount] = useState(0);
   const [dotsShown, setDotsShown] = useState(0);
+  const [countdown, setCountdown] = useState(0); // New state for countdown
 
   const scoreRef = useRef(0);
   const missedCountRef = useRef(0);
@@ -23,6 +24,7 @@ function EYE() {
   const countdownRef = useRef(null);
   const stimulusTimeoutRef = useRef(null);
   const cooldownTimeoutRef = useRef(null);
+  const startCountdownRef = useRef(null); // New ref for countdown timer
 
   const generateRandomPosition = (quarter) => {
     const screenWidth = window.innerWidth;
@@ -67,7 +69,21 @@ function EYE() {
     stimulusQueue.current = [];
     setCurrentStimulus(null);
     setTimeLeft(60);
-    setStage('test');
+    
+    // Start 3-second countdown
+    setCountdown(5);
+    setStage('countdown');
+    
+    startCountdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(startCountdownRef.current);
+          setStage('test');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const finishTest = async () => {
@@ -76,7 +92,7 @@ function EYE() {
     clearTimeout(cooldownTimeoutRef.current);
     setCurrentStimulus(null);
     
-    const resultToStore = missedCountRef.current >= 5 ? "yes" : "no";
+    const resultToStore = missedCountRef.current >= 6 ? "yes" : "no";
     const patientId = localStorage.getItem("patientId");
     
     if (!patientId) {
@@ -86,13 +102,12 @@ function EYE() {
     }
 
     try {
-      const docRef = doc(db, "patients_topform", patientId);
+      const docRef = doc(firestore , "patients_topform", patientId);
       await updateDoc(docRef, {
         eyeTestResult: resultToStore,
         eyeTestDotsShown: dotsShownRef.current,
         eyeTestMissed: missedCountRef.current,
         eyeTestClicked: scoreRef.current,
-        eyeTestTimestamp: new Date().toISOString()
       });
     } catch (err) {
       console.error("Error updating Firebase:", err);
@@ -125,52 +140,53 @@ function EYE() {
     }, 1000);
 
     const runStimulusLoop = () => {
-      if (dotsShownRef.current >= 30) {
-        finishTest();
-        return;
-      }
+  if (dotsShownRef.current >= 30) {
+    finishTest();
+    return;
+  }
 
-      const quarters = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-      const quarter = quarters[Math.floor(Math.random() * quarters.length)];
-      const pos = generateRandomPosition(quarter);
-      const id = Date.now();
+  const quarters = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+  const quarter = quarters[Math.floor(Math.random() * quarters.length)];
+  const pos = generateRandomPosition(quarter);
+  const id = Date.now();
 
-      const stim = {
-        id,
-        x: pos.x,
-        y: pos.y,
-        color: '#ffffff',
-        shownAt: Date.now(),
-        quarter
-      };
+  const stim = {
+    id,
+    x: pos.x,
+    y: pos.y,
+    color: '#ffffff',
+    shownAt: Date.now(),
+    quarter
+  };
 
-      setCurrentStimulus(stim);
-      stimulusQueue.current.push(stim);
-      setDotsShown(prev => {
+  setCurrentStimulus(stim);
+  stimulusQueue.current.push(stim);
+  
+  setDotsShown(prev => {
+    const updated = prev + 1;
+    dotsShownRef.current = updated;
+    return updated;
+  });
+
+  stimulusTimeoutRef.current = setTimeout(() => {
+    const matched = stimulusQueue.current.find(s => s.id === id);
+    if (matched && !matched.hit) {
+      setMissedCount(prev => {
         const updated = prev + 1;
-        dotsShownRef.current = updated;
+        missedCountRef.current = updated;
         return updated;
       });
+    }
 
-      stimulusTimeoutRef.current = setTimeout(() => {
-        const matched = stimulusQueue.current.find(s => s.id === id);
-        if (matched && !matched.hit) {
-          setMissedCount(prev => {
-            const updated = prev + 1;
-            missedCountRef.current = updated;
-            return updated;
-          });
-        }
+    setCurrentStimulus(null);
 
-        setCurrentStimulus(null);
-
-        cooldownTimeoutRef.current = setTimeout(() => {
-          if (stage === 'test') {
-            runStimulusLoop();
-          }
-        }, Math.floor(Math.random() * (2000 - 800 + 1)) + 800);
-      }, 500);
-    };
+    cooldownTimeoutRef.current = setTimeout(() => {
+      if (stage === 'test') {
+        runStimulusLoop();
+      }
+    }, Math.floor(Math.random() * (2000 - 800 + 1)) + 800);
+  }, 500);
+};
 
     runStimulusLoop();
 
@@ -180,6 +196,15 @@ function EYE() {
       clearTimeout(cooldownTimeoutRef.current);
     };
   }, [stage]);
+
+  useEffect(() => {
+    return () => {
+      // Clean up countdown timer when component unmounts
+      if (startCountdownRef.current) {
+        clearInterval(startCountdownRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -205,25 +230,33 @@ function EYE() {
   return (
     <div className="container">
       {stage === 'notice' && (
-        <div className="notice" style={{ fontFamily: "Prompt", marginTop: "30px", width:"620px" }}>
+        <div className="notice" style={{ fontFamily: "Prompt", marginTop: "60px", width:"620px" }}>
           <div className='EYEheader' style={{fontSize:"75px"}}>วิธีการประเมิน</div>
-          <div className='steps' style={{fontSize:"22px", textAlign:"left", marginLeft:"20px"}}>
+          <div className='steps' style={{fontSize:"22px", textAlign:"left", marginLeft:"20px",color: "#787878"}}>
           <p>1. นั่งหน้าตรงเข้าหาหน้าจอ ห่างจากหน้าจอ 46 เซนติเมตร</p>
-          <p>2. จ้องจุดสีเขียวตลอดเวลาขณะทำการประเมิน</p>
+          <p>2. จ้องจุดสีเขียวกลางหน้าจอตลอดเวลาขณะทำการประเมิน</p>
           <p>3. หากเห็นจุดสีขาวขึ้นบนหน้าจอ ให้กด "Space Bar"</p>
           </div>
           <img src={EYESpace} style={{ height: "180px", width: "auto", marginBottom: "20px" }} />
-          <h2 style={{ fontSize: "20px", color: "red" }}>⚠️ คำเตือน ⚠️</h2>
-          <p style={{ fontSize: "20px" }}>หากรู้สึกเวียนหัว โปรดหยุดใช้งานทันที</p>
+          <h2 style={{ fontSize: "25px", color: "red" }}>⚠️ คำเตือน ⚠️</h2>
+          <p style={{ fontSize: "25px" }}>หากรู้สึกเวียนหัว โปรดหยุดใช้งานทันที</p>
           <button
-            className="btn btn-success"
+            className="insideStart"
             onClick={startTest}
-            style={{ display: "block", margin: "0 auto" }}
+            style={{ display: "block", margin: "0 auto", fontWeight:"500", fontSize:"25px" }}
           >
-            เริ่มทดสอบ
+            เริ่ม
           </button>
         </div>
       )}
+      
+      {stage === 'countdown' && (
+        <div className="countdown-overlay-EYE">
+          <div className="fixation-dot"></div>
+          <div className="countdown-text-EYE">{countdown}</div>
+        </div>
+      )}
+      
       {stage === 'test' && (
         <>
           <div className="info-bar">

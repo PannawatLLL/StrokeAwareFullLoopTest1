@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './LoginRegister.css';
 import BrainSide from './pic/BrainSide.png';
-import {auth} from '../auth.js';
+import {auth} from './auth.js';
 import {signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../auth.js';
+import { db } from './auth.js';
 import { Link , useNavigate} from 'react-router-dom';
 import Swal from 'sweetalert2';
 

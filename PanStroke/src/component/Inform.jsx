@@ -43,7 +43,8 @@ export function Inform() {
                     
                 </div>  
             </div>
-            <Link to="/BEFAST_MAIN_BALANCE" className="submit">go main</Link>
+            <Link to="/SearchByIdCardAngel" className="submit">go Angel</Link>
+            <Link to="/DoctorDashboard" className="submit">go Dashboard</Link>
             {/* <Link to="/Hospital" className="submit">go Map</Link> */}
         </div>
     );

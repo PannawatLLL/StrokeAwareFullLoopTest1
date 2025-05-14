@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../auth.js';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore'; // ✅ เพิ่ม query, where, getDocs
+import { firestore } from './auth';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import './LoginRegister.css';
@@ -11,7 +11,6 @@ const PatientTopForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     surname: '',
-    birthDate: '',
     age: '',
     idCard: '',
     gender: '',
@@ -24,7 +23,7 @@ const PatientTopForm = () => {
   const [firebaseInitialized, setFirebaseInitialized] = useState(false);
 
   useEffect(() => {
-    if (db) {
+    if (firestore) {
       setFirebaseInitialized(true);
     } else {
       console.error('Firestore instance is not available');
@@ -36,39 +35,14 @@ const PatientTopForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  useEffect(() => {
-    if (formData.birthDate) {
-      try {
-        const birthYear = new Date(formData.birthDate).getFullYear() + 543;
-        const currentYear = new Date().getFullYear() + 543;
-        const calculatedAge = currentYear - birthYear;
-        setFormData(prev => ({ ...prev, age: calculatedAge.toString() }));
-      } catch (error) {
-        console.error('Date calculation error:', error);
-      }
-    }
-  }, [formData.birthDate]);
-
   const validateForm = () => {
     const errors = [];
-    if (!formData.name.trim()) {
-      errors.push('กรุณากรอกชื่อ');
-    }
-    if (!formData.surname.trim()) {
-      errors.push('กรุณากรอกสกุล');
-    }
-    if (!formData.idCard.trim() || !/^\d{13}$/.test(formData.idCard.trim())) {
-      errors.push('เลขบัตรประชาชนต้องมี 13 หลัก');
-    }
-    if (!formData.gender) {
-      errors.push('กรุณาเลือกเพศ');
-    }
-    if (!formData.phone.trim() || !/^\d{10}$/.test(formData.phone.trim())) {
-      errors.push('เบอร์โทรศัพท์ต้องมี 10 หลัก');
-    }
-    if (!formData.birthDate) {
-      errors.push('กรุณากรอกวันเกิด');
-    }
+    if (!formData.name.trim()) errors.push('กรุณากรอกชื่อ');
+    if (!formData.surname.trim()) errors.push('กรุณากรอกสกุล');
+    if (!formData.age.trim() || isNaN(formData.age) || +formData.age <= 0) errors.push('กรุณากรอกอายุให้ถูกต้อง');
+    if (!formData.idCard.trim() || !/^\d{13}$/.test(formData.idCard.trim())) errors.push('เลขบัตรประชาชนต้องมี 13 หลัก');
+    if (!formData.gender) errors.push('กรุณาเลือกเพศ');
+    if (!formData.phone.trim() || !/^\d{10}$/.test(formData.phone.trim())) errors.push('เบอร์โทรศัพท์ต้องมี 10 หลัก');
     return errors;
   };
 
@@ -93,8 +67,7 @@ const PatientTopForm = () => {
     }
 
     try {
-      // ✅ เช็ก idCard ว่าซ้ำไหม
-      const q = query(collection(db, 'patients_topform'), where('idCard', '==', formData.idCard));
+      const q = query(collection(firestore, 'patients_topform'), where('idCard', '==', formData.idCard));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
@@ -108,12 +81,8 @@ const PatientTopForm = () => {
         return;
       }
 
-      // === Format Thai date and time ===
       const now = new Date();
-      const months = [
-        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-      ];
+      const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
       const day = now.getDate();
       const monthName = months[now.getMonth()];
       const year = now.getFullYear() + 543;
@@ -122,7 +91,7 @@ const PatientTopForm = () => {
       const formattedDate = `${monthName} ${day} พ.ศ. ${year}`;
       const formattedTime = `เวลา ${hour}:${minute} น.`;
 
-      const docRef = await addDoc(collection(db, 'patients_topform'), {
+      const docRef = await addDoc(collection(firestore, 'patients_topform'), {
         ...formData,
         fullName: `${formData.name} ${formData.surname}`,
         createdAt: new Date(),
@@ -170,8 +139,8 @@ const PatientTopForm = () => {
           <input name="surname" value={formData.surname} onChange={handleChange} required />
         </div>
         <div className="form-group">
-          <label>วันเกิด</label>
-          <input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} required />
+          <label>อายุ</label>
+          <input name="age" value={formData.age} onChange={handleChange} required type="number" min="1" />
         </div>
         <div className="form-group">
           <label>เลขบัตรประชาชน (13 หลัก)</label>

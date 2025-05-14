@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../../../auth';
+import {firestore } from '../../../component/auth';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import './FaceAsymmetry.css';
@@ -154,7 +154,7 @@ const FaceAsymmetry = () => {
         return;
       }
 
-      await setDoc(doc(db, "patients_topform", patientId), {
+      await setDoc(doc(firestore , "patients_topform", patientId), {
         faceAsymmetryResult: result,
         lastUpdated: new Date().toISOString()
       }, { merge: true });

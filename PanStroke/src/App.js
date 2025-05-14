@@ -19,6 +19,8 @@ import PatientDetail from './component/PatientDetail.jsx'
 import {VoiceTrigger} from './component/TestVoiceSpeech.js'
 import SearchByIdCard from './component/SearchPatient.jsx';
 import Hospital from './asset/BEFAST/Assesment/Hospital.jsx';
+import SearchByIdCardAngel from './component/SearchPatientAngel.jsx';
+import DoctorDashboard from './component/Dashboard.jsx';
 
 import {
   BrowserRouter as Router,
@@ -115,8 +117,16 @@ function App() {
                         element={<SearchByIdCard/>}
                     />
         <Route
+                        path="/SearchByIdCardAngel"
+                        element={<SearchByIdCardAngel/>}
+                    />
+        <Route
                         path="/Hospital"
                         element={<Hospital/>}
+                    />
+        <Route
+                        path="/DoctorDashboard"
+                        element={<DoctorDashboard/>}
                     />
       </Routes>
     </Router>

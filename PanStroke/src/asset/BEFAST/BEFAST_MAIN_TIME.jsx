@@ -3,7 +3,7 @@ import '../../component/LoginRegister.css';
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 import { Link, Navigate } from "react-router-dom";
-import { db } from '../../auth';
+import { firestore } from '../../component/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 
 import TIMEcomponent from "./asset_pic/TIMEcomponent.png";
@@ -19,7 +19,7 @@ export function BEFAST_MAIN_TIME() {
     const patientId = localStorage.getItem('patientId');
 
     if (!patientName || !patientId) {
-        return <Navigate to="/SearchByIdCard" replace />;
+        return <Navigate to="/SearchByIdCardAngel" replace />;
     }
 
     const handleSubmit = async () => {
@@ -48,50 +48,64 @@ export function BEFAST_MAIN_TIME() {
 
         const totalHours = h + m / 60;
         const TimeFactor = `${h}.${m.toString().padStart(2, '0')}`;
-
         setIsSubmitting(true);
 
-        try {
-            const patientRef = doc(db, "patients_topform", patientId);
-            await updateDoc(patientRef, {
-                TimeFactor: TimeFactor
-            });
+        const updatePatientWithLocation = async (lat, lng) => {
+            try {
+                const patientRef = doc(firestore, "patients_topform", patientId);
+                await updateDoc(patientRef, {
+                    TimeFactor,
+                    lat,
+                    lng
+                });
 
-            localStorage.removeItem('patientName');
-            localStorage.removeItem('patientId');
+                localStorage.removeItem('patientName');
+                localStorage.removeItem('patientId');
 
-            if (totalHours > 4.5) {
-                await Swal.fire({
-                    icon: 'warning',
-                    title: 'อาการนานเกิน 4.5 ชั่วโมง',
-                    text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
+                if (totalHours > 4.5) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'อาการนานเกิน 4.5 ชั่วโมง',
+                        text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
+                        confirmButtonText: 'ตกลง'
+                    });
+                } else if (totalHours > 1) {
+                    await Swal.fire({
+                        icon: 'info',
+                        title: 'อาการนานเกิน 1 ชั่วโมง',
+                        text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
+                        confirmButtonText: 'ตกลง'
+                    });
+                }
+
+                navigate("/InForm");
+
+            } catch (error) {
+                console.error("Error updating patient document:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง',
                     confirmButtonText: 'ตกลง'
                 });
-            } else if (totalHours > 1) {
-                await Swal.fire({
-                    icon: 'info',
-                    title: 'อาการนานเกิน 1 ชั่วโมง',
-                    text: 'โปรดรับผลการประเมินทั้งหมดที่หน้าต่อไป',
-                    confirmButtonText: 'ตกลง'
+            } finally {
+                setIsSubmitting(false);
+            }
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                updatePatientWithLocation(latitude, longitude);
+            },
+            (error) => {
+                console.warn("Location permission denied:", error);
+                Swal.fire({
+                }).then(() => {
+                    updatePatientWithLocation(null, null);
                 });
             }
-            
-            // ✅ Always redirect to /InForm
-            localStorage.removeItem('patientName');
-            localStorage.removeItem('patientId');
-            navigate("/InForm");
-            
-        } catch (error) {
-            console.error("Error updating patient document:", error);
-            Swal.fire({
-                icon: 'error',
-                title: 'เกิดข้อผิดพลาด',
-                text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองอีกครั้ง',
-                confirmButtonText: 'ตกลง'
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        );
     };
 
     return (
@@ -112,8 +126,8 @@ export function BEFAST_MAIN_TIME() {
                         <img src={TIMEcomponent} className="centerpictureMAIN5" />
                     </div>
                     <div className="insideTitleTHTIME" style={{ fontFamily: "Prompt" }}>
-                        คุณมีอาการมาข้างต้นมานานแค่ไหนแล้ว <span style={{fontWeight:"700", textDecoration:"underline"}}>(หากมี)</span>
-                        <p style={{fontWeight:"500", color:"#787878"}}>** หากไม่มีให้ใส่ 0 : 0 **</p>
+                        คุณมีอาการมาข้างต้นมานานแค่ไหนแล้ว <span style={{ fontWeight: "700", textDecoration: "underline" }}>(หากมี)</span>
+                        <p style={{ fontWeight: "500", color: "#787878" }}>** หากไม่มีให้ใส่ 0 : 0 **</p>
                     </div>
                     <div style={{ textAlign: 'center', marginTop: '20px' }}>
                         <div style={{
@@ -140,12 +154,7 @@ export function BEFAST_MAIN_TIME() {
                                 min="0"
                                 max="23"
                                 value={hours}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    if (value === "" || (!isNaN(value) && parseInt(value) >= 0 && parseInt(value) <= 23)) {
-                                        setHours(value);
-                                    }
-                                }}
+                                onChange={(e) => setHours(e.target.value)}
                                 style={{
                                     width: '60px',
                                     height: '60px',
@@ -162,12 +171,7 @@ export function BEFAST_MAIN_TIME() {
                                 min="0"
                                 max="59"
                                 value={minutes}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    if (value === "" || (!isNaN(value) && parseInt(value) >= 0 && parseInt(value) <= 59)) {
-                                        setMinutes(value);
-                                    }
-                                }}
+                                onChange={(e) => setMinutes(e.target.value)}
                                 style={{
                                     width: '60px',
                                     height: '60px',

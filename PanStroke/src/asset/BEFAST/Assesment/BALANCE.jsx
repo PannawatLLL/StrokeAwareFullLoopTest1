@@ -4,7 +4,7 @@ import { Pose } from "@mediapipe/pose";
 import "@mediapipe/pose/pose";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../../auth";
+import { firestore  } from "../../../component/auth";
 import BALANCEnarrator from "./NarratorAsset/BALANCEnarrator.mp3";
 import Swal from "sweetalert2";
 import Audiobutton from "./NarratorAsset/Audiobutton.png";
@@ -139,7 +139,7 @@ const BALANCE = () => {
       try {
         const docId = localStorage.getItem("patientId");
         if (docId) {
-          const docRef = doc(db, "patients_topform", docId);
+          const docRef = doc(firestore , "patients_topform", docId);
           await updateDoc(docRef, {
             balanceResult: flag,
             balanceAverage: avgFixed
@@ -273,12 +273,12 @@ const BALANCE = () => {
 
       {showInstructions && (
         <div className="instruction-popup" style={{ alignItems: "center", textAlign: "center" }}>
-          <div className="popup-content" style={{ fontFamily: "Prompt" }}>
-            <h2 style={{ fontSize: "35px", marginTop: "-20px" }}>วิธีการประเมิน</h2>
+          <div className="popup-content" style={{ fontFamily: "Prompt"}}>
+            <h2 style={{ fontSize: "35px", marginTop: "20px" }}>วิธีการประเมิน</h2>
             <div className="instruction-steps" style={{ color: "#787878", marginLeft: "-30px" }}>
-              <div className="step">1. กดเริ่มเมื่อพร้อม</div>
-              <div className="step">2. เดินถอยห่างจากกล้องประมาณ 6 ก้าว และยืนให้ตรงกลางเส้น</div>
-              <div className="step">3. ค่อยๆ เดินเข้าหากล้องภายในระยะเวลา 5 วิ</div>
+              <div className="step">1. เดินถอยห่างจากกล้องประมาณ 6 ก้าว และยืนให้ตรงกลางเส้น</div>
+              <div className="step">2. ค่อยๆ เดินเข้าหากล้องภายในระยะเวลา 5 วิ</div>
+              <div className="step">3. กดเริ่มเมื่อพร้อม</div>
             </div>
             <audio ref={audioRef} src={BALANCEnarrator} autoPlay />
             <div className="ismutepiccontainer">
@@ -286,7 +286,7 @@ const BALANCE = () => {
                 <img src={isMuted ? Audiobutton : Audiomutebutton} style={{ width: "60px", height: "auto" }} alt="Audio Toggle" />
               </button>
             </div>
-            <button onClick={handleStart} className="insideStart">เริ่ม</button>
+            <button onClick={handleStart} className="insideStart" style={{marginTop:"-20px", marginBottom:"20px"}}>เริ่ม</button>
           </div>
         </div>
       )}

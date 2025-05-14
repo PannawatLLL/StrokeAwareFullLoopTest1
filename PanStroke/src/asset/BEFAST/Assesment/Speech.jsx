@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import stringSimilarity from 'string-similarity';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../auth';
+import { firestore } from '../../../component/auth';
 import Swal from 'sweetalert2';
 import './Speech.css';
 
@@ -15,7 +15,7 @@ const SpeechEvaluationApp = () => {
   const [allowed, setAllowed] = useState(null);
 
   const task = {
-    text: "ยายพาฉันไปซื้อขนมที่ตลาด",
+    text: "ยายพาหลานไปซื้อขนมที่ตลาด",
     prompt: "พูดประโยค "
   };
 
@@ -52,7 +52,7 @@ const SpeechEvaluationApp = () => {
     try {
       const docId = localStorage.getItem("patientId");
       if (docId) {
-        const docRef = doc(db, "patients_topform", docId);
+        const docRef = doc(firestore, "patients_topform", docId);
         await updateDoc(docRef, {
           speechResult: result.level.value
         });

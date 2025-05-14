@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { db } from '../auth'; // Firebase config
+import { firestore } from './auth'; // Firebase config
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Swal from 'sweetalert2';
 import html2canvas from 'html2canvas';
@@ -28,7 +28,7 @@ const StrokeFormOverlay = () => {
 
     try {
       const q = query(
-        collection(db, 'patients_topform'),
+        collection(firestore , 'patients_topform'),
         where('idCard', '==', idCardInput.trim())
       );
       const querySnapshot = await getDocs(q);

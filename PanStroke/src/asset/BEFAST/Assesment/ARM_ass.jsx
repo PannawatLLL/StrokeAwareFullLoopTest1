@@ -6,7 +6,7 @@ import { drawConnectors } from '@mediapipe/drawing_utils';
 import './ARM.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../auth';
+import { firestore  } from '../../../component/auth';
 import Swal from 'sweetalert2';
 
 import Audiobutton from "./NarratorAsset/Audiobutton.png";
@@ -25,7 +25,7 @@ const ArmStrengthTest = () => {
   const [isReady, setIsReady] = useState(false);
   const [isInPosition, setIsInPosition] = useState(false);
   const [testStarted, setTestStarted] = useState(false);
-  const [countdown, setCountdown] = useState(20);
+  const [countdown, setCountdown] = useState(15);
   const [correctPoseTime, setCorrectPoseTime] = useState(0);
   const [showPopup, setShowPopup] = useState(true);
   const [testCompleted, setTestCompleted] = useState(false);
@@ -123,7 +123,7 @@ const ArmStrengthTest = () => {
       countdownTimer.current = setInterval(() => {
         setCountdown((prev) => {
           const newCount = prev - 1;
-          const newProgress = ((20 - newCount) / 20) * 100;
+          const newProgress = ((15 - newCount) / 15) * 100;
           setProgress(newProgress);
 
           if (isInPosition) {
@@ -136,7 +136,7 @@ const ArmStrengthTest = () => {
             setTestStarted(false);
             
             // Determine result and store to Firebase
-            const result = correctPoseTime >= 15 ? "no" : "yes";
+            const result = correctPoseTime >= 10 ? "no" : "yes";
             setArmResult(result);
             storeArmResult(result);
             
@@ -152,25 +152,34 @@ const ArmStrengthTest = () => {
   }, [allowed, testStarted, isInPosition, testCompleted, correctPoseTime]);
 
   const storeArmResult = async (result) => {
-    try {
-      const docId = localStorage.getItem("patientId");
-      if (docId) {
-        const docRef = doc(db, "patients_topform", docId);
-        await updateDoc(docRef, {
-          armResult: result
-        });
-        console.log("Arm test result saved to Firestore");
-      }
-    } catch (err) {
-      console.error("Error updating Firestore:", err);
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to save results',
-        icon: 'error',
-        timer: 2000
+  try {
+    const docId = localStorage.getItem("patientId");
+    if (docId) {
+      const docRef = doc(firestore , "patients_topform", docId);
+      await updateDoc(docRef, {
+        armResult: result
       });
+      console.log("Arm test result saved to Firestore");
+
+      await Swal.fire({
+        title: 'ทดสอบเสร็จสิ้น',
+        icon: 'success',
+        confirmButtonText: 'ถัดไป'
+      });
+
+      changePage(); // 🔁 go to next page after confirmation
     }
-  };
+  } catch (err) {
+    console.error("Error updating Firestore:", err);
+    Swal.fire({
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถบันทึกผลการประเมินได้',
+      icon: 'error',
+      timer: 1000
+    });
+  }
+};
+
 
   const calculateAngle = (A, B, C) => {
     const radians = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
@@ -257,7 +266,7 @@ const ArmStrengthTest = () => {
   const startTest = () => {
     setShowPopup(false);
     setTestStarted(true);
-    setCountdown(20);
+    setCountdown(15);
     setTestCompleted(false);
     setCorrectPoseTime(0);
     setProgress(0);
@@ -303,7 +312,7 @@ const ArmStrengthTest = () => {
             <div className="instruction-steps">
               <div className="step">1. ยืนหันข้างให้กับกล้อง</div>
               <div className="step">2. ยกแขนขึ้น 90 องศา</div>
-              <div className="step">3. ยกแขนค้างไว้ 15 วินาที</div>
+              <div className="step">3. ยกแขนค้างไว้ 10 วินาที</div>
               <div className='ArmRaiseContainer'><img src={ArmRaise} className='ArmRaise' alt="Arm Raise Example" /></div>
             </div>
             <audio ref={audioRef} src={ARMnarrator} autoPlay />
@@ -328,36 +337,27 @@ const ArmStrengthTest = () => {
       </div>
 
       {testStarted && (
-        <div className="test-status">
-          <div className="progress-container">
-            <svg className="progress-circle" viewBox="0 0 36 36">
-              <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path className="circle-fill" stroke={getCircleColor()} strokeDasharray={`${progress}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            </svg>
-            <div className="countdown-text">{countdown}s</div>
-          </div>
-          <p className={`status-message ${isInPosition ? 'success' : 'warning'}`}>
-            {isInPosition ? <span className="pulse-icon">✓</span> : <span>!</span>} {isInPosition ? 'Hold steady!' : 'Raise your arm to 90°'}
-          </p>
+    <div className="test-status-overlay">
+      <div className="test-status">
+        <div className="progress-container">
+          <svg className="progress-circle" viewBox="0 0 36 36">
+            <path className="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path
+              className="circle-fill"
+              stroke={getCircleColor()}
+              strokeDasharray={`${progress}, 100`}
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            />
+          </svg>
+          <div className="countdown-text">{countdown}s</div>
         </div>
-      )}
+        <p className={`status-message ${isInPosition ? 'success' : 'warning'}`}>
+          {isInPosition ? <span className="pulse-icon">✓</span> : <span>!</span>} {isInPosition ? 'Hold steady!' : 'Raise your arm to 90°'}
+        </p>
+      </div>
+    </div>
+  )}
 
-      {testCompleted && (
-        <div className="completion-overlay">
-          <div className="completion-card">
-            <div className="success-animation">
-              <svg className="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
-                <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
-              </svg>
-            </div>
-            <h2 style={{ fontFamily: "Prompt", marginBottom: "24px" }}>
-              ทดสอบเสร็จสิ้น
-            </h2>
-            <button onClick={changePage} className="retry-button" style={{ fontFamily: "Prompt" }}>ถัดไป</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
